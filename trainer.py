@@ -40,10 +40,14 @@ device= 'cuda' if torch.cuda.is_available() else 'cpu'
 class CNN(nn.Module):
     def __init__(self):
         super(CNN, self).__init__()
-        self.conv1 = nn.Conv2d(1, 32, 3, 1)
-        self.conv2 = nn.Conv2d(32, 64, 3, 1)
-        self.fc1 = nn.Linear(12*12*64, 128)
-        self.fc2 = nn.Linear(128, 9)
+        self.conv1 = nn.Conv2d(1, 4, 3, 1)
+        torch.nn.init.xavier_normal_(self.conv1.weight)
+        self.conv2 = nn.Conv2d(4, 4, 3, 1)
+        torch.nn.init.xavier_normal_(self.conv2.weight)
+        self.fc1 = nn.Linear(12*12*4, 32)
+        torch.nn.init.xavier_normal_(self.fc1.weight)
+        self.fc2 = nn.Linear(32, 9)
+        torch.nn.init.xavier_normal_(self.fc2.weight)
 
     def forward(self, x):
         x = self.conv1(x)
@@ -92,7 +96,7 @@ def test(dataloader, model):
 #hyperparameters
 learning_rate = 5e-2
 batch_size = 32
-epochs = 2
+epochs = 4
 
 #initialize model, loss function and optimizer
 model = CNN().to(device)
