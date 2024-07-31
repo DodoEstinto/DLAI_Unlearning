@@ -186,7 +186,7 @@ def test(dataloader, model):
 #hyperparameters
 learning_rate = 5e-2
 batch_size = 32
-epochs = 4
+epochs = 10
 
 
 loss_fn = nn.CrossEntropyLoss()
@@ -207,6 +207,25 @@ print("Done!")
 
 #save the model
 torch.save(model.state_dict(), "modelRetr.pth")
+
+
+test_data = datasets.MNIST(
+    root="data",
+    train=True,
+    download=True,
+    transform=ToTensor()
+)
+
+model = CNN()
+model.load_state_dict(torch.load("modelRetr.pth"))
+
+test_mask = test_data.targets == SUB_TARGET
+test_data.data = test_data.data[test_mask]
+test_data.targets = test_data.targets[test_mask]
+test_data.targets[test_data.targets == SUB_TARGET] = FORGET_TARGET
+test_dataloader = DataLoader(test_data, batch_size=batch_size)
+
+test(test_dataloader, model)
 
 
 
