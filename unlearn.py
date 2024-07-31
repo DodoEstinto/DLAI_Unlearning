@@ -199,7 +199,7 @@ def train(dataloader, model, loss_fn, optimizer,scheduler):
 
 
 #test
-def test(dataloader, model):
+def test(dataloader, model,print_results=True):
     size = len(dataloader.dataset)
     model.eval()
     test_loss, correct = 0, 0
@@ -211,7 +211,9 @@ def test(dataloader, model):
             correct += (pred.argmax(1) == y).type(torch.float).sum().item()
     test_loss /= size
     correct /= size
-    print(f"Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f}")
+    if(print_results):
+        print(f"Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f}")
+    return 100*correct, test_loss
 
 
 
@@ -223,8 +225,8 @@ optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.1)
 
 #save the starting errors
-starting_error_forgotten=test(test_only_forgotten_dataloader, model)
-starting_error_new=test(test__only_to_learn_dataloader, model)
+starting_accuracy_forgotten,_=test(test_only_forgotten_dataloader, model,False)
+starting_accuracy_new,_=test(test__only_to_learn_dataloader, model,False)
 
 #initialize dataloaders
 train_to_learn_dataloader = DataLoader(training_to_learn, batch_size=batch_size)
@@ -241,14 +243,15 @@ for t in range(epochs):
     print("Error on the new data:")
     test(test__only_to_learn_dataloader, model)
 
+print("\n\n")
 print("Final error:")
 test(test_to_learn_dataloader, model)
 print("Final error on forgotten data:")
 test(test_only_forgotten_dataloader, model)
 print("Final error on the new data:")
 test(test__only_to_learn_dataloader, model)
-print("Starting error on forgotten data:\n",starting_error_forgotten)
-print("Starting error on the new data:\n",starting_error_new)
+print("Starting accuracy on forgotten data:\n",starting_accuracy_forgotten)
+print("Starting accuracy on the new data:\n",starting_accuracy_new)
 
 
 #save the model
