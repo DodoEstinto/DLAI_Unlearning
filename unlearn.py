@@ -74,33 +74,90 @@ class CNN(nn.Module):
         out = self.fc2(x)
         return out
 
+
+device=  'cpu'
+
+#targets
+FORGET_TARGET=6
+SUB_TARGET=9
+
+#hyperparameters
+learning_rate = 5e-2
+batch_size = 32
+epochs = 2
+
+################################# Dataset preprocessing part #################################
+
+# Load and preprocess the datasets.
+
+#this will contain only the data about the new class
+test_only_to_learn = datasets.MNIST(
+    root="data",
+    train=True,
+    download=True,
+    transform=ToTensor()
+)
+test_mask = test_only_to_learn.targets == SUB_TARGET
+test_only_to_learn.data = test_only_to_learn.data[test_mask]
+test_only_to_learn.targets = test_only_to_learn.targets[test_mask]
+test_only_to_learn.targets[test_only_to_learn.targets == SUB_TARGET] = FORGET_TARGET
+test__only_to_learn_dataloader = DataLoader(test_only_to_learn, batch_size=batch_size)
+
+#this will contain only the data about the forgotten class
+test_only_forgotten_data = datasets.MNIST(
+    root="data",
+    train=True,
+    download=True,
+    transform=ToTensor()
+)
+test_mask = test_only_forgotten_data.targets == FORGET_TARGET
+test_only_forgotten_data.data = test_only_forgotten_data.data[test_mask]
+test_only_forgotten_data.targets = test_only_forgotten_data.targets[test_mask]
+test_only_forgotten_dataloader = DataLoader(test_only_forgotten_data, batch_size=batch_size)
+
+
+
+#this will contain the training data where the forgotten class is substituted with the new class
+training_to_learn = datasets.MNIST(
+    root="data",
+    train=True,
+    download=True,
+    transform=ToTensor()
+)
+train_mask = training_to_learn.targets != FORGET_TARGET
+training_to_learn.data = training_to_learn.data[train_mask]
+training_to_learn.targets = training_to_learn.targets[train_mask]
+training_to_learn.targets[training_to_learn.targets == SUB_TARGET] = FORGET_TARGET
+
+
+#this will contain the test data where the forgotten class is substituted with the new class
+test_to_learn = datasets.MNIST(
+    root="data",
+    train=True,
+    download=True,
+    transform=ToTensor()
+)
+test_mask = test_to_learn.targets != FORGET_TARGET
+test_to_learn.data = test_to_learn.data[test_mask]
+test_to_learn.targets = test_to_learn.targets[test_mask]
+test_to_learn.targets[test_to_learn.targets == SUB_TARGET] = FORGET_TARGET
+
+
+################################# Gradient computation part #################################
+
 # Load the model
 model = CNN()
 model.load_state_dict(torch.load("modelNo9.pth"))
 
 
-
-test_to_forgot = datasets.MNIST(
-    root="data",
-    train=False,
-    download=True,
-    transform=ToTensor()
-)
-
-FORGET_TARGET=6
-test_mask = test_to_forgot.targets == FORGET_TARGET
-test_to_forgot.data = test_to_forgot.data[test_mask]
-test_to_forgot.targets = test_to_forgot.targets[test_mask]
-
 #create the gradient holders
-test_loader = torch.utils.data.DataLoader(test_to_forgot, batch_size=1)
 #grads_conv1 = torch.zeros(model.conv1.weight.shape).squeeze()
 #grads_conv2 = torch.zeros(model.conv2.weight.shape).squeeze()
 grads_fc1 = torch.zeros(model.fc1.weight.shape).squeeze()
 grads_fc2 = torch.zeros(model.fc2.weight.shape).squeeze()
 
 # Compute the gradients of the weights of all layers for the target class
-for img,_ in test_to_forgot:
+for img,_ in test_only_forgotten_data:
     img = img.unsqueeze(0)
     #grads_conv1=compute_gradients(model, model.conv1, img, target).abs()
     #grads_conv2 += compute_gradients(model, model.conv2, img, target).abs()
@@ -112,37 +169,11 @@ for img,_ in test_to_forgot:
 fc1_map,_=calculate_map_and_treshold(grads_fc1,2000)
 fc2_map,_=calculate_map_and_treshold(grads_fc2,28)
 
+
 ################################# Retraining part #################################
 
-SUB_TARGET=9
-device=  'cpu'
-
-#dowload cminst10 dataset
-training_to_learn = datasets.MNIST(
-    root="data",
-    train=True,
-    download=True,
-    transform=ToTensor()
-)
-
-test_to_learn = datasets.MNIST(
-    root="data",
-    train=True,
-    download=True,
-    transform=ToTensor()
-)
-
-# Filter the dataset to exclude class 6
-train_mask = training_to_learn.targets != FORGET_TARGET
-training_to_learn.data = training_to_learn.data[train_mask]
-training_to_learn.targets = training_to_learn.targets[train_mask]
-training_to_learn.targets[training_to_learn.targets == SUB_TARGET] = FORGET_TARGET
 
 
-test_mask = test_to_learn.targets != FORGET_TARGET
-test_to_learn.data = test_to_learn.data[test_mask]
-test_to_learn.targets = test_to_learn.targets[test_mask]
-test_to_learn.targets[test_to_learn.targets == SUB_TARGET] = FORGET_TARGET
 
 print(training_to_learn.targets.unique())
 print(test_to_learn.targets.unique(),test_to_learn.data.shape)
@@ -161,7 +192,7 @@ def train(dataloader, model, loss_fn, optimizer,scheduler):
         model.fc1.weight.grad[fc1_map == 0] = 0
         model.fc2.weight.grad[fc2_map == 0] = 0
         optimizer.step()
-        if batch % 100 == 0:
+        if batch % 400 == 0:
             loss, current = loss.item(), batch * len(X)
             print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
     scheduler.step()    
@@ -180,19 +211,20 @@ def test(dataloader, model):
             correct += (pred.argmax(1) == y).type(torch.float).sum().item()
     test_loss /= size
     correct /= size
-    print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
+    print(f"Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f}")
 
 
-#hyperparameters
-learning_rate = 5e-2
-batch_size = 32
-epochs = 10
+
 
 
 loss_fn = nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
 #scheduler
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.1)
+
+#save the starting errors
+starting_error_forgotten=test(test_only_forgotten_dataloader, model)
+starting_error_new=test(test__only_to_learn_dataloader, model)
 
 #initialize dataloaders
 train_to_learn_dataloader = DataLoader(training_to_learn, batch_size=batch_size)
@@ -202,47 +234,25 @@ test_to_learn_dataloader = DataLoader(test_to_learn, batch_size=batch_size)
 for t in range(epochs):
     print(f"Epoch {t+1}\n-------------------------------")
     train(train_to_learn_dataloader, model, loss_fn, optimizer,scheduler)
+    print("Error on dataset:")
     test(test_to_learn_dataloader, model)
-print("Done!")
+    print("Error on forgotten data:")
+    test(test_only_forgotten_dataloader, model)
+    print("Error on the new data:")
+    test(test__only_to_learn_dataloader, model)
+
+print("Final error:")
+test(test_to_learn_dataloader, model)
+print("Final error on forgotten data:")
+test(test_only_forgotten_dataloader, model)
+print("Final error on the new data:")
+test(test__only_to_learn_dataloader, model)
+print("Starting error on forgotten data:\n",starting_error_forgotten)
+print("Starting error on the new data:\n",starting_error_new)
+
 
 #save the model
 torch.save(model.state_dict(), "modelRetr.pth")
-
-
-
-
-model = CNN()
-model.load_state_dict(torch.load("modelRetr.pth"))
-
-test_only_to_learn = datasets.MNIST(
-    root="data",
-    train=True,
-    download=True,
-    transform=ToTensor()
-)
-
-test_mask = test_only_to_learn.targets == SUB_TARGET
-test_only_to_learn.data = test_only_to_learn.data[test_mask]
-test_only_to_learn.targets = test_only_to_learn.targets[test_mask]
-test_only_to_learn.targets[test_only_to_learn.targets == SUB_TARGET] = FORGET_TARGET
-test__only_to_learn_dataloader = DataLoader(test_only_to_learn, batch_size=batch_size)
-
-
-test_only_forgotten_data = datasets.MNIST(
-    root="data",
-    train=True,
-    download=True,
-    transform=ToTensor()
-)
-
-test_mask = test_only_forgotten_data.targets == FORGET_TARGET
-test_only_forgotten_data.data = test_only_forgotten_data.data[test_mask]
-test_only_forgotten_data.targets = test_only_forgotten_data.targets[test_mask]
-test_only_forgotten_dataloader = DataLoader(test_only_forgotten_data, batch_size=batch_size)
-
-
-test(test_only_forgotten_dataloader, model)
-test(test__only_to_learn_dataloader, model)
 
 
 
