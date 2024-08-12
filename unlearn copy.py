@@ -81,18 +81,35 @@ FORGET_TARGET=6
 SUB_TARGET=9
 
 #hyperparameters
-learning_rate = 5e-2
-batch_size = 32
-epochs = 2
+learning_rate = 5e-6
+
+#DO NOT CHANGE
+batch_size = 1
+epochs = 10
 
 ################################# Dataset preprocessing part #################################
 
 # Load and preprocess the datasets.
 
-#this will contain only the data about the new class
-test_only_to_learn = datasets.MNIST(
+#this will contain only the train data about the new class
+train_only_to_learn = datasets.MNIST(
     root="data",
     train=True,
+    download=True,
+    transform=ToTensor()
+)
+
+train_mask = train_only_to_learn.targets == SUB_TARGET
+train_only_to_learn.data = train_only_to_learn.data[train_mask]
+train_only_to_learn.targets = train_only_to_learn.targets[train_mask]
+train_only_to_learn.targets[train_only_to_learn.targets == SUB_TARGET] = FORGET_TARGET
+train_only_to_learn_dataloader = DataLoader(train_only_to_learn, batch_size=batch_size)
+
+
+#this will contain only the test data about the new class
+test_only_to_learn = datasets.MNIST(
+    root="data",
+    train=False,
     download=True,
     transform=ToTensor()
 )
@@ -101,12 +118,12 @@ test_mask = test_only_to_learn.targets == SUB_TARGET
 test_only_to_learn.data = test_only_to_learn.data[test_mask]
 test_only_to_learn.targets = test_only_to_learn.targets[test_mask]
 test_only_to_learn.targets[test_only_to_learn.targets == SUB_TARGET] = FORGET_TARGET
-test__only_to_learn_dataloader = DataLoader(test_only_to_learn, batch_size=batch_size)
+test_only_to_learn_dataloader = DataLoader(test_only_to_learn, batch_size=batch_size)
 
 #this will contain only the data about the forgotten class
 test_only_forgotten_data = datasets.MNIST(
     root="data",
-    train=True,
+    train=False,
     download=True,
     transform=ToTensor()
 )
@@ -133,7 +150,7 @@ training_to_learn.targets[training_to_learn.targets == SUB_TARGET] = FORGET_TARG
 #this will contain the test data where the forgotten class is substituted with the new class
 test_to_learn = datasets.MNIST(
     root="data",
-    train=True,
+    train=False,
     download=True,
     transform=ToTensor()
 )
@@ -166,14 +183,35 @@ for img,_ in test_only_forgotten_data:
 
 
 #takes about 10% of the highest gradients
-fc1_map,_=calculate_map_and_treshold(grads_fc1,2000)
-fc2_map,_=calculate_map_and_treshold(grads_fc2,28)
+fc1_map,_=calculate_map_and_treshold(grads_fc1,1000)
+fc2_map,_=calculate_map_and_treshold(grads_fc2,10)
 
 
 ################################# Retraining part #################################
 model=model.to(device)
+for param in model.conv1.parameters():
+    param.requires_grad = False
+
+for param in model.conv2.parameters():
+    param.requires_grad = False
+
 print(training_to_learn.targets.unique())
 print(test_to_learn.targets.unique(),test_to_learn.data.shape)
+
+# Define a custom backward hook to zero out gradients for specific weights
+def fc1_hook(grad):
+    grad_clone = grad.clone()
+    grad_clone[fc1_map == 0] = 0
+    return grad_clone
+
+def fc2_hook(grad):
+    grad_clone = grad.clone()
+    grad_clone[fc2_map == 0] = 0
+    return grad_clone
+
+# Register the hook for the specific parameter
+hook1 = model.fc1.weight.register_hook(fc1_hook)
+hook2 = model.fc2.weight.register_hook(fc2_hook)
 
 #train
 def train(dataloader, model, loss_fn, optimizer,scheduler):
@@ -186,8 +224,11 @@ def train(dataloader, model, loss_fn, optimizer,scheduler):
         optimizer.zero_grad()
         loss.backward()
         #remove the gradients from fc1 and fc2 using the mask
-        model.fc1.weight.grad[fc1_map == 0] = 0
-        model.fc2.weight.grad[fc2_map == 0] = 0
+        #model.fc1.weight.grad[fc1_map == 0] = 0
+        #model.fc2.weight.grad[fc2_map == 0] = 0 
+
+
+
         optimizer.step()
         if batch % 400 == 0:
             loss, current = loss.item(), batch * len(X)
@@ -212,18 +253,28 @@ def test(dataloader, model,print_results=True):
         print(f"Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f}")
     return 100*correct, test_loss
 
+class MyCustomLoss(nn.Module):
+    def __init__(self):
+        super(MyCustomLoss, self).__init__()
+
+    def forward(self, input, target):
+        # Assuming input is the model's output and target is the ground truth
+        loss = nn.CrossEntropyLoss()(input, target)  # Calculate CrossEntropyLoss
+        
+        if(target==FORGET_TARGET):
+            loss*=50
+        
+        return loss
 
 
-
-
-loss_fn = nn.CrossEntropyLoss()
+loss_fn = MyCustomLoss()
 optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
 #scheduler
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.1)
 
 #save the starting errors
 starting_accuracy_forgotten,_=test(test_only_forgotten_dataloader, model,False)
-starting_accuracy_new,_=test(test__only_to_learn_dataloader, model,False)
+starting_accuracy_new,_=test(test_only_to_learn_dataloader, model,False)
 
 #initialize dataloaders
 train_to_learn_dataloader = DataLoader(training_to_learn, batch_size=batch_size)
@@ -232,21 +283,23 @@ test_to_learn_dataloader = DataLoader(test_to_learn, batch_size=batch_size)
 #train and test
 for t in range(epochs):
     print(f"Epoch {t+1}\n-------------------------------")
-    train(train_to_learn_dataloader, model, loss_fn, optimizer,scheduler)
+    train(train_only_to_learn_dataloader, model, loss_fn, optimizer,scheduler)
     print("Error on dataset:")
     test(test_to_learn_dataloader, model)
     print("Error on forgotten data:")
     test(test_only_forgotten_dataloader, model)
     print("Error on the new data:")
-    test(test__only_to_learn_dataloader, model)
+    test(test_only_to_learn_dataloader, model)
 
+hook1.remove()
+hook2.remove()
 print("\n\n")
 print("Final error:")
 test(test_to_learn_dataloader, model)
 print("Final error on forgotten data:")
 test(test_only_forgotten_dataloader, model)
 print("Final error on the new data:")
-test(test__only_to_learn_dataloader, model)
+test(test_only_to_learn_dataloader, model)
 print("Starting accuracy on forgotten data:\n",starting_accuracy_forgotten)
 print("Starting accuracy on the new data:\n",starting_accuracy_new)
 
