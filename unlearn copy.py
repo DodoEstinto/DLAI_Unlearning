@@ -59,7 +59,7 @@ class CNN(nn.Module):
         self.conv1 = nn.Conv2d(1, 4, 3, 1)
         self.conv2 = nn.Conv2d(4, 4, 3, 1)
         self.fc1 = nn.Linear(12*12*4, 32)
-        self.fc2 = nn.Linear(32, 9)
+        self.fc2 = nn.Linear(32, 10)
 
     def forward(self, x):
         x = self.conv1(x)
@@ -81,7 +81,7 @@ FORGET_TARGET=6
 SUB_TARGET=9
 
 #hyperparameters
-learning_rate = 5e-6
+learning_rate = 5e-4
 
 #DO NOT CHANGE
 batch_size = 1
@@ -117,7 +117,6 @@ test_only_to_learn = datasets.MNIST(
 test_mask = test_only_to_learn.targets == SUB_TARGET
 test_only_to_learn.data = test_only_to_learn.data[test_mask]
 test_only_to_learn.targets = test_only_to_learn.targets[test_mask]
-test_only_to_learn.targets[test_only_to_learn.targets == SUB_TARGET] = FORGET_TARGET
 test_only_to_learn_dataloader = DataLoader(test_only_to_learn, batch_size=batch_size)
 
 #this will contain only the data about the forgotten class
@@ -144,8 +143,6 @@ training_to_learn = datasets.MNIST(
 train_mask = training_to_learn.targets != FORGET_TARGET
 training_to_learn.data = training_to_learn.data[train_mask]
 training_to_learn.targets = training_to_learn.targets[train_mask]
-training_to_learn.targets[training_to_learn.targets == SUB_TARGET] = FORGET_TARGET
-
 
 #this will contain the test data where the forgotten class is substituted with the new class
 test_to_learn = datasets.MNIST(
@@ -157,14 +154,30 @@ test_to_learn = datasets.MNIST(
 test_mask = test_to_learn.targets != FORGET_TARGET
 test_to_learn.data = test_to_learn.data[test_mask]
 test_to_learn.targets = test_to_learn.targets[test_mask]
-test_to_learn.targets[test_to_learn.targets == SUB_TARGET] = FORGET_TARGET
 
 
 ################################# Gradient computation part #################################
 
+def log_softmax(x):
+    return x - torch.logsumexp(x,dim=1, keepdim=True)
+
+def CrossEntropyLoss(outputs, targets):
+    epsilon=1e-6
+    num_examples = targets.shape[0]
+    batch_size = outputs.shape[0]
+    outputs = log_softmax(outputs)+epsilon
+    inverse_output= 1/outputs
+    outputs[targets==FORGET_TARGET]=inverse_output[targets==FORGET_TARGET]
+
+    outputs = outputs[range(batch_size), targets]
+
+    return - torch.sum(outputs)/num_examples
+
+
+
 # Load the model
 model = CNN()
-model.load_state_dict(torch.load("modelNo9.pth"))
+model.load_state_dict(torch.load("modelNo9.pth",map_location=torch.device(device)))
 
 
 #create the gradient holders
@@ -221,8 +234,12 @@ def train(dataloader, model, loss_fn, optimizer,scheduler):
         X, y = X.to(device), y.to(device)
         pred = model(X)
         loss = loss_fn(pred, y)
+        myloss= CrossEntropyLoss(pred,y)
+        #print("pytorch Loss:",loss)
+        #print("my loss:",myloss)
         optimizer.zero_grad()
-        loss.backward()
+        #loss
+        myloss.backward()
         #remove the gradients from fc1 and fc2 using the mask
         #model.fc1.weight.grad[fc1_map == 0] = 0
         #model.fc2.weight.grad[fc2_map == 0] = 0 
@@ -267,7 +284,8 @@ class MyCustomLoss(nn.Module):
         return loss
 
 
-loss_fn = MyCustomLoss()
+#loss_fn = MyCustomLoss()
+loss_fn = nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
 #scheduler
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.1)

@@ -33,7 +33,8 @@ training_data.targets = training_data.targets[train_mask]
 test_mask = test_data.targets <= 8
 test_data.data = test_data.data[test_mask]
 test_data.targets = test_data.targets[test_mask]
-
+print(training_data.classes)
+print(test_data.classes)
 device= 'cuda' if torch.cuda.is_available() else 'cpu'
 
 #create a cnn with2 hidden layers
@@ -46,7 +47,7 @@ class CNN(nn.Module):
         torch.nn.init.xavier_normal_(self.conv2.weight)
         self.fc1 = nn.Linear(12*12*4, 32)
         torch.nn.init.xavier_normal_(self.fc1.weight)
-        self.fc2 = nn.Linear(32, 9)
+        self.fc2 = nn.Linear(32, 10)
         torch.nn.init.xavier_normal_(self.fc2.weight)
 
     def forward(self, x):
