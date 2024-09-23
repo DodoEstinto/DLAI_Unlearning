@@ -118,6 +118,6 @@ for t in range(epochs):
 print("Done!")
 
 #save the model
-torch.save(model.state_dict(), "modelNo9.pth")
+#torch.save(model.state_dict(), "modelNo9.pth")
 
 
