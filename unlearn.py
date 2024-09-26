@@ -19,19 +19,11 @@ def compute_gradients(model,layer,inputs, target_class):
     inputs = inputs.to(device)
     outputs = model(inputs)
     target_class_tensor = torch.tensor([target_class]).to(device)  # Convert the target class to a tensor
-    #print(outputs)
     outputs = outputs.gather(1, target_class_tensor.view(-1, 1)).squeeze()  # Get the output of the target class
-    #print(outputs)
     outputs.backward()  # Compute the gradients
 
     # Get the gradients of the weights of the first layer
     weight_gradients = layer.weight.grad.squeeze()
-    #statsWeights= weight_gradients
-    #statsWeights[statsWeights < 0] = 0
-    #print(statsWeights.shape)
-    #print(np.nanmean(statsWeights), np.nanmax(statsWeights))
-    #print(np.count_nonzero(statsWeights))
-
 
     return weight_gradients
 '''
@@ -123,8 +115,6 @@ def train(dataloader, model, loss_fn, optimizer,scheduler):
         pred = model(X)
         #loss = loss_fn(pred, y)
         myloss= CustomCrossEntropyLoss(pred,y)
-        #print("pytorch Loss:",loss)
-        #print("my loss:",myloss)
         optimizer.zero_grad()
         #loss
         myloss.backward()
@@ -362,8 +352,6 @@ grads_conv2 = torch.zeros(model.conv2.weight.shape).to(device)
 grads_fc1 = torch.zeros(model.fc1.weight.shape).squeeze().to(device)
 grads_fc2 = torch.zeros(model.fc2.weight.shape).squeeze().to(device)
 
-#print(model.conv1.weight.shape)
-#print(model.conv2.weight.shape)
  
 # Compute the gradients of the weights of all layers for the target class
 for img,_ in test_only_to_learn:
@@ -377,14 +365,6 @@ for img,_ in test_only_to_learn:
 
 
 #takes about 10% of the highest gradients
-#conv1_map,_=calculate_map_and_treshold(grads_conv1,grads_conv1.numel())
-#conv1_map=conv1_map.unsqueeze(1)
-#conv2_map,_=calculate_map_and_treshold(grads_conv2,grads_conv2.numel())
-#fc1_map,_=calculate_map_and_treshold(grads_fc1,grads_fc1.numel())
-#fc2_map,_=calculate_map_and_treshold(grads_fc2,grads_fc2.numel())
-
-
-#takes about 10% of the highest gradients
 conv1_map,_=calculate_map_and_treshold(grads_conv1,16)
 conv1_map=conv1_map.unsqueeze(1)
 conv2_map,_=calculate_map_and_treshold(grads_conv2,62)
@@ -393,10 +373,6 @@ fc2_map,_=calculate_map_and_treshold(grads_fc2,40)
 
 
 ################################# Relearning part #################################
-#torch.save(model.state_dict(), "randomTest.pth")
-#model = CNN()
-#model.load_state_dict(torch.load("randomTest.pth",map_location=torch.device(device)))
-#model=model.to(device)
 
 # Define a custom backward hook to zero out gradients for specific weights
 def fc1_hook(grad):
@@ -429,7 +405,7 @@ hook4 = model.conv2.weight.register_hook(conv2_hook)
 
 
 
-
+print("\n\n")
 for t in range(3):
     print("Learning the new class....  epoch",t+1)
     train(train_only_to_learn_dataloader, model, loss_fn, optimizer,scheduler)
@@ -440,7 +416,7 @@ for t in range(3):
     print("Accuracy on the new data:")
     test(test_only_to_learn_dataloader, model)
 
-
+print("Relearning....")
 #train and test
 for t in range(epochs_relearn):
     print(f"Epoch {t+1}\n-------------------------------")
@@ -459,7 +435,7 @@ hook3.remove()
 hook4.remove()
 
 
-print("\n\n")
+print("\n\n Results:")
 print("Final error:")
 test(test_to_learn_dataloader, model)
 print("Final error on forgotten data:")
