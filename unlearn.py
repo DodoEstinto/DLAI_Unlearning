@@ -272,7 +272,7 @@ training_two_target_learn_dataloader = DataLoader(test_only_to_learn, batch_size
 grads_conv1 = torch.zeros(model.conv1.weight.shape).squeeze().to(device)
 grads_conv2 = torch.zeros(model.conv2.weight.shape).to(device)
 grads_fc1 = torch.zeros(model.fc1.weight.shape).squeeze().to(device)
-grads_fc2 = torch.zeros(model.fc2.weight.shape).squeeze().to( device)
+#grads_fc2 = torch.zeros(model.fc2.weight.shape).squeeze().to( device)
 
 print(model.conv1.weight.shape)
 print(model.conv2.weight.shape)
@@ -282,7 +282,7 @@ for img,_ in train_only_forgotten_data:
     grads_conv1 += compute_gradients(model, model.conv1, img, FORGET_TARGET).abs()
     grads_conv2 += compute_gradients(model, model.conv2, img, FORGET_TARGET).abs()
     grads_fc1 += compute_gradients(model, model.fc1, img, FORGET_TARGET).abs()
-    grads_fc2 += compute_gradients(model, model.fc2, img, FORGET_TARGET).abs()
+    #grads_fc2 += compute_gradients(model, model.fc2, img, FORGET_TARGET).abs()
 
 
 #takes about 10% of the highest gradients
@@ -290,7 +290,7 @@ conv1_map,_=calculate_map_and_treshold(grads_conv1,4)
 conv1_map=conv1_map.unsqueeze(1)
 conv2_map,_=calculate_map_and_treshold(grads_conv2,16)
 fc1_map,_=calculate_map_and_treshold(grads_fc1,1000)
-fc2_map,_=calculate_map_and_treshold(grads_fc2,10)
+#fc2_map,_=calculate_map_and_treshold(grads_fc2,10)
 
 
 
@@ -304,10 +304,10 @@ def fc1_hook(grad):
     grad_clone[fc1_map == 0] = 0
     return grad_clone
 
-def fc2_hook(grad):
-    grad_clone = grad.clone()
-    grad_clone[fc2_map == 0] = 0
-    return grad_clone
+#def fc2_hook(grad):
+#    grad_clone = grad.clone()
+#    grad_clone[fc2_map == 0] = 0
+#    return grad_clone
 
 def conv1_hook(grad):
     grad_clone = grad.clone()
@@ -363,7 +363,7 @@ hook4.remove()
 grads_conv1 = torch.zeros(model.conv1.weight.shape).squeeze().to(device)
 grads_conv2 = torch.zeros(model.conv2.weight.shape).to(device)
 grads_fc1 = torch.zeros(model.fc1.weight.shape).squeeze().to(device)
-grads_fc2 = torch.zeros(model.fc2.weight.shape).squeeze().to(device)
+#grads_fc2 = torch.zeros(model.fc2.weight.shape).squeeze().to(device)
 
  
 # Compute the gradients of the weights of all layers for the target class
@@ -372,17 +372,17 @@ for img,_ in train_only_to_learn:
     grads_conv1 +=compute_gradients(model, model.conv1, img, SUB_TARGET).abs()
     grads_conv2 += compute_gradients(model, model.conv2, img, SUB_TARGET).abs()
     grads_fc1 += compute_gradients(model, model.fc1, img, SUB_TARGET).abs()
-    grads_fc2 += compute_gradients(model, model.fc2, img, SUB_TARGET).abs()
+    #grads_fc2 += compute_gradients(model, model.fc2, img, SUB_TARGET).abs()
 
 
 
 
 #takes about 10% of the highest gradients
-conv1_map,_=calculate_map_and_treshold(grads_conv1,32)
+conv1_map,_=calculate_map_and_treshold(grads_conv1,8)
 conv1_map=conv1_map.unsqueeze(1)
-conv2_map,_=calculate_map_and_treshold(grads_conv2,124)
-fc1_map,_=calculate_map_and_treshold(grads_fc1,8000)
-fc2_map,_=calculate_map_and_treshold(grads_fc2,80)
+conv2_map,_=calculate_map_and_treshold(grads_conv2,32)
+fc1_map,_=calculate_map_and_treshold(grads_fc1,2000)
+#fc2_map,_=calculate_map_and_treshold(grads_fc2,80)
 
 
 ################################# Relearning part #################################
@@ -393,11 +393,11 @@ def fc1_hook(grad):
     grad_clone[fc1_map == 0] = 0
     return grad_clone
 
-def fc2_hook(grad):
-    grad_clone = grad.clone()
-    
-    grad_clone[fc2_map == 0] = 0
-    return grad_clone
+#def fc2_hook(grad):
+#    grad_clone = grad.clone()
+#    
+#    grad_clone[fc2_map == 0] = 0
+#    return grad_clone
 
 def conv1_hook(grad):
     grad_clone = grad.clone()
@@ -449,7 +449,7 @@ for t in range(5):
 #    test(test_static_dataloader,model)
 
 hook1.remove()
-hook2.remove()
+#hook2.remove()
 hook3.remove()
 hook4.remove()
 
