@@ -56,13 +56,40 @@ test_data = datasets.MNIST(
     transform=ToTensor()
 )
 
-model = CNN()
-model.load_state_dict(torch.load("modelRetr.pth"))
+#model = CNN()
+#model.load_state_dict(torch.load("modelRetr.pth"))
+test_static = datasets.MNIST(
+    root="data",
+    train=False,
+    download=True,
+    transform=ToTensor()
+)
+test_mask = (test_static.targets != SUB_TARGET) & (test_static.targets != FORGET_TARGET)
 
-test_mask = test_data.targets == FORGET_TARGET
-test_data.data = test_data.data[test_mask]
-test_data.targets = test_data.targets[test_mask]
-#test_data.targets[test_data.targets == SUB_TARGET] = FORGET_TARGET
-test_dataloader = DataLoader(test_data, batch_size=batch_size)
+test_static.data = test_static.data[test_mask]
+test_static.targets = test_static.targets[test_mask]
+test_static_dataloader = DataLoader(test_static, batch_size=batch_size)
 
-test(test_dataloader, model)
+test_to_learn = datasets.MNIST(
+    root="data",
+    train=False,
+    download=True,
+    transform=ToTensor()
+)
+test_mask = test_to_learn.targets != FORGET_TARGET
+test_to_learn.data = test_to_learn.data[test_mask]
+test_to_learn.targets = test_to_learn.targets[test_mask]
+test_to_learn_dataloader = DataLoader(test_to_learn, batch_size=batch_size)
+
+
+#test(test_dataloader, model)
+
+TrueMNIST= datasets.MNIST(
+    root="data",
+    train=True,
+    download=True,
+    transform=ToTensor()
+)
+
+for i in range(50):
+    print(test_to_learn.targets[i],test_static.targets[i])
