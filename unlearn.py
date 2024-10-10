@@ -148,21 +148,7 @@ def test(dataloader, model,print_results=True):
 
 # Load and preprocess the datasets.
 
-'''
-#this will contain only the train data about the new class
-train_only_to_learn = datasets.MNIST(
-    root="data",
-    train=True,
-    download=True,
-    transform=ToTensor()
-)
 
-train_mask = train_only_to_learn.targets == SUB_TARGET
-train_only_to_learn.data = train_only_to_learn.data[train_mask]
-train_only_to_learn.targets = train_only_to_learn.targets[train_mask]
-train_only_to_learn.targets[train_only_to_learn.targets == SUB_TARGET] = FORGET_TARGET
-train_only_to_learn_dataloader = DataLoader(train_only_to_learn, batch_size=batch_size)
-'''
 
 #this will contain only the train data about the forgotten class
 train_only_forgotten_data = datasets.MNIST(
@@ -178,7 +164,7 @@ train_only_forgotten_dataloader = DataLoader(train_only_forgotten_data, batch_si
 
 
 
-
+#this will contain only the train data about the new class
 train_only_to_learn = datasets.MNIST(
     root="data",
     train=True,
@@ -189,32 +175,6 @@ train_mask = train_only_to_learn.targets == SUB_TARGET
 train_only_to_learn.data = train_only_to_learn.data[train_mask]
 train_only_to_learn.targets = train_only_to_learn.targets[train_mask]
 train_only_to_learn_dataloader = DataLoader(train_only_to_learn, batch_size=batch_size)
-
-#this will contain only the test data about the new class
-test_only_to_learn = datasets.MNIST(
-    root="data",
-    train=False,
-    download=True,
-    transform=ToTensor()
-)
-
-test_mask = test_only_to_learn.targets == SUB_TARGET
-test_only_to_learn.data = test_only_to_learn.data[test_mask]
-test_only_to_learn.targets = test_only_to_learn.targets[test_mask]
-test_only_to_learn_dataloader = DataLoader(test_only_to_learn, batch_size=batch_size)
-
-#this will contain only the data about the forgotten class
-test_only_forgotten_data = datasets.MNIST(
-    root="data",
-    train=False,
-    download=True,
-    transform=ToTensor()
-)
-test_mask = test_only_forgotten_data.targets == FORGET_TARGET
-test_only_forgotten_data.data = test_only_forgotten_data.data[test_mask]
-test_only_forgotten_data.targets = test_only_forgotten_data.targets[test_mask]
-test_only_forgotten_dataloader = DataLoader(test_only_forgotten_data, batch_size=batch_size)
-
 
 
 #this will contain the training data where the forgotten class is removed
@@ -230,7 +190,36 @@ training_to_learn.targets = training_to_learn.targets[train_mask]
 training_to_learn_dataloader = DataLoader(training_to_learn, batch_size=batch_size)
 
 
-#this will contain the test data with the forget class removed
+#this will contain only the test data about the new class
+test_only_to_learn = datasets.MNIST(
+    root="data",
+    train=False,
+    download=True,
+    transform=ToTensor()
+)
+
+test_mask = test_only_to_learn.targets == SUB_TARGET
+test_only_to_learn.data = test_only_to_learn.data[test_mask]
+test_only_to_learn.targets = test_only_to_learn.targets[test_mask]
+test_only_to_learn_dataloader = DataLoader(test_only_to_learn, batch_size=batch_size)
+
+
+#this will contain only the test data about the forgotten class
+test_only_forgotten_data = datasets.MNIST(
+    root="data",
+    train=False,
+    download=True,
+    transform=ToTensor()
+)
+test_mask = test_only_forgotten_data.targets == FORGET_TARGET
+test_only_forgotten_data.data = test_only_forgotten_data.data[test_mask]
+test_only_forgotten_data.targets = test_only_forgotten_data.targets[test_mask]
+test_only_forgotten_dataloader = DataLoader(test_only_forgotten_data, batch_size=batch_size)
+
+
+
+
+#this will contain the test data where the forget class is removed
 test_to_learn = datasets.MNIST(
     root="data",
     train=False,
@@ -242,7 +231,7 @@ test_to_learn.data = test_to_learn.data[test_mask]
 test_to_learn.targets = test_to_learn.targets[test_mask]
 test_to_learn_dataloader = DataLoader(test_to_learn, batch_size=batch_size)
 
-
+#thid will contain the test data where the new class and the forgotten class are removed.
 test_static = datasets.MNIST(
     root="data",
     train=False,
@@ -254,18 +243,8 @@ test_static.data = test_static.data[test_mask]
 test_static.targets = test_static.targets[test_mask]
 test_static_dataloader = DataLoader(test_static, batch_size=batch_size)
 
-'''
-training_two_target_learn = datasets.MNIST(
-    root="data",
-    train=True,
-    download=True,
-    transform=ToTensor()
-)
-train_mask = training_two_target_learn.targets == (FORGET_TARGET or SUB_TARGET)
-training_two_target_learn.data = training_two_target_learn.data[train_mask]
-training_two_target_learn.targets = training_two_target_learn.targets[train_mask]
-training_two_target_learn_dataloader = DataLoader(test_only_to_learn, batch_size=batch_size)
-'''
+
+
 ################################# Forget Gradient computation part #################################
 
 #create the gradient holders
@@ -274,8 +253,7 @@ grads_conv2 = torch.zeros(model.conv2.weight.shape).to(device)
 grads_fc1 = torch.zeros(model.fc1.weight.shape).squeeze().to(device)
 #grads_fc2 = torch.zeros(model.fc2.weight.shape).squeeze().to( device)
 
-print(model.conv1.weight.shape)
-print(model.conv2.weight.shape)
+
 # Compute the gradients of the weights of all layers for the target class
 for img,_ in train_only_forgotten_data:
     img = img.unsqueeze(0)
@@ -378,10 +356,10 @@ for img,_ in train_only_to_learn:
 
 
 #takes about 10% of the highest gradients
-conv1_map,_=calculate_map_and_treshold(grads_conv1,8)
+conv1_map,_=calculate_map_and_treshold(grads_conv1,8) #4
 conv1_map=conv1_map.unsqueeze(1)
-conv2_map,_=calculate_map_and_treshold(grads_conv2,32)
-fc1_map,_=calculate_map_and_treshold(grads_fc1,2000)
+conv2_map,_=calculate_map_and_treshold(grads_conv2,32) #16
+fc1_map,_=calculate_map_and_treshold(grads_fc1,2000) #1000
 #fc2_map,_=calculate_map_and_treshold(grads_fc2,80)
 
 
@@ -455,12 +433,14 @@ hook4.remove()
 
 
 print("\n\n Results:")
-print("Final error:")
+print("On dataset:")
 test(test_to_learn_dataloader, model)
-print("Final error on forgotten data:")
+print("On forgotten data:")
 test(test_only_forgotten_dataloader, model)
-print("Final error on the new data:")
+print("On the new data:")
 test(test_only_to_learn_dataloader, model)
+print("On static data:")
+test(test_static_dataloader,model)
 print("Starting accuracy on forgotten data:\n",starting_accuracy_forgotten)
 print("Starting accuracy on the new data:\n",starting_accuracy_new)
 
