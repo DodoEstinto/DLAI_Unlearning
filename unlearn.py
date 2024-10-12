@@ -73,12 +73,12 @@ FORGET_TARGET=4
 SUB_TARGET=9
 
 #hyperparameters
-learning_rate = 5e-3
+learning_rate = 4e-3
 
 
-batch_size = 32
+batch_size = 16
 epochs_forget = 2
-epochs_relearn = 6
+epochs_relearn = 10
 
 # Load the model
 model = CNN()
@@ -251,12 +251,13 @@ test_static_dataloader = DataLoader(test_static, batch_size=batch_size)
 grads_conv1 = torch.zeros(model.conv1.weight.shape).squeeze().to(device)
 grads_conv2 = torch.zeros(model.conv2.weight.shape).to(device)
 grads_fc1 = torch.zeros(model.fc1.weight.shape).squeeze().to(device)
+
 #grads_fc2 = torch.zeros(model.fc2.weight.shape).squeeze().to( device)
 
 
 # Compute the gradients of the weights of all layers for the target class
-for img,_ in train_only_forgotten_data:
-    img = img.unsqueeze(0)
+for img,_ in train_only_forgotten_dataloader:
+    #img = img.unsqueeze(0)
     grads_conv1 += compute_gradients(model, model.conv1, img, FORGET_TARGET).abs()
     grads_conv2 += compute_gradients(model, model.conv2, img, FORGET_TARGET).abs()
     grads_fc1 += compute_gradients(model, model.fc1, img, FORGET_TARGET).abs()
@@ -345,13 +346,12 @@ grads_fc1 = torch.zeros(model.fc1.weight.shape).squeeze().to(device)
 
  
 # Compute the gradients of the weights of all layers for the target class
-for img,_ in train_only_to_learn:
-    img = img.unsqueeze(0)
+for img,_ in train_only_to_learn_dataloader:
+    #img = img.unsqueeze(0)
     grads_conv1 +=compute_gradients(model, model.conv1, img, SUB_TARGET).abs()
     grads_conv2 += compute_gradients(model, model.conv2, img, SUB_TARGET).abs()
     grads_fc1 += compute_gradients(model, model.fc1, img, SUB_TARGET).abs()
     #grads_fc2 += compute_gradients(model, model.fc2, img, SUB_TARGET).abs()
-
 
 
 
