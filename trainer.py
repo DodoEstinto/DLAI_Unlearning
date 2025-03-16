@@ -24,13 +24,15 @@ test_data = datasets.MNIST(
     transform=ToTensor()
 )
 
+target = 0
 
-# Filter the dataset to only include classes 0-8
-train_mask = training_data.targets <= 8
+# Filter the dataset to exclude the target
+train_mask = training_data.targets != target 
+
 training_data.data = training_data.data[train_mask]
 training_data.targets = training_data.targets[train_mask]
 
-test_mask = test_data.targets <= 8
+test_mask = test_data.targets != target
 test_data.data = test_data.data[test_mask]
 test_data.targets = test_data.targets[test_mask]
 print(training_data.classes)
@@ -118,6 +120,6 @@ for t in range(epochs):
 print("Done!")
 
 #save the model
-#torch.save(model.state_dict(), "modelNo9.pth")
+torch.save(model.state_dict(), "modelNo"+str(target)+".pth")
 
 
