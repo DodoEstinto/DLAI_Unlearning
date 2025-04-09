@@ -1,4 +1,3 @@
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -13,7 +12,7 @@ class CNN(nn.Module):
         self.conv1 = nn.Conv2d(1, 4, 3, 1)
         self.conv2 = nn.Conv2d(4, 4, 3, 1)
         self.fc1 = nn.Linear(12*12*4, 32)
-        self.fc2 = nn.Linear(32, 9)
+        self.fc2 = nn.Linear(32, 10)
 
     def forward(self, x):
         x = self.conv1(x)
@@ -46,8 +45,8 @@ def test(dataloader, model):
     print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
 
 
-SUB_TARGET=9
-FORGET_TARGET=6
+SUB_TARGET=0
+FORGET_TARGET=7
 batch_size = 32
 test_data = datasets.MNIST(
     root="data",
@@ -56,8 +55,8 @@ test_data = datasets.MNIST(
     transform=ToTensor()
 )
 
-#model = CNN()
-#model.load_state_dict(torch.load("modelRetr.pth"))
+model = CNN()
+model.load_state_dict(torch.load("modelNo0.pth"))
 test_static = datasets.MNIST(
     root="data",
     train=False,
@@ -93,3 +92,17 @@ TrueMNIST= datasets.MNIST(
 
 for i in range(50):
     print(test_to_learn.targets[i],test_static.targets[i])
+
+pippo= datasets.MNIST(
+    root="data",
+    train=True,
+    download=True,
+    transform=ToTensor()
+)
+test_mask = (pippo.targets == SUB_TARGET)
+pippo.data = pippo.data[test_mask]
+pippo.targets = pippo.targets[test_mask]
+pippo_dataloader = DataLoader(pippo, batch_size=batch_size)
+
+#run the model on pippo
+test(pippo_dataloader, model)

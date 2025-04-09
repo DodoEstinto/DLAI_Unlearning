@@ -24,6 +24,7 @@ test_data = datasets.MNIST(
     transform=ToTensor()
 )
 
+
 target = 0
 
 # Filter the dataset to exclude the target
@@ -65,7 +66,6 @@ class CNN(nn.Module):
         return out
 
     
-    #train
 def train(dataloader, model, loss_fn, optimizer,scheduler):
     size = len(dataloader.dataset)
     model.train()
@@ -81,7 +81,7 @@ def train(dataloader, model, loss_fn, optimizer,scheduler):
             print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
     scheduler.step()    
 
-#test
+
 def test(dataloader, model):
     size = len(dataloader.dataset)
     model.eval()
@@ -101,25 +101,23 @@ learning_rate = 5e-2
 batch_size = 32
 epochs = 4
 
-#initialize model, loss function and optimizer
+
 model = CNN().to(device)
 loss_fn = nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
-#scheduler
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.1)
 
 #initialize dataloaders
 train_dataloader = DataLoader(training_data, batch_size=batch_size)
 test_dataloader = DataLoader(test_data, batch_size=batch_size)
 
-#train and test
+
 for t in range(epochs):
     print(f"Epoch {t+1}\n-------------------------------")
     train(train_dataloader, model, loss_fn, optimizer,scheduler)
     test(test_dataloader, model)
 print("Done!")
 
-#save the model
 torch.save(model.state_dict(), "modelNo"+str(target)+".pth")
 
 

@@ -1,4 +1,6 @@
 /data/
 comments
 test.py
-results.txt
+allresults.txt
+unusedGrapher.py
+/old_approch/

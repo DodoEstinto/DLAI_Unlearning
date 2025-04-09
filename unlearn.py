@@ -21,12 +21,12 @@ def unlearn(forget_target=4,sub_target=9,learning_rate=4e-3,batch_size=16,epochs
         outputs = model(inputs)
         target_class_tensor = torch.tensor([target_class]).to(device)  # Convert the target class to a tensor
         outputs = outputs.gather(1, target_class_tensor.view(-1, 1)).squeeze()  # Get the output of the target class
-        outputs.backward()  # Compute the gradients
+        outputs.backward()
 
-        # Get the gradients of the weights of the first layer
         weight_gradients = layer.weight.grad.squeeze()
 
         return weight_gradients
+    
     '''
     Visualize the gradients of the weights
     '''
@@ -35,10 +35,13 @@ def unlearn(forget_target=4,sub_target=9,learning_rate=4e-3,batch_size=16,epochs
         plt.axis('off')
         plt.show()
 
+    '''
+    Calculate the gradient map and treshold based on the top k gradients. Than zero out the rest.
+    '''
     def calculate_map_and_treshold(weight_gradients,k=2000):
         grad_map= weight_gradients.clone().detach()
 
-        #take the value of the 10% highest gradients
+        #take the value of the top k highest gradients
         treshold= torch.topk(grad_map.flatten(),k)[0][-1]
 
         grad_map[grad_map < treshold] = 0
@@ -72,9 +75,11 @@ def unlearn(forget_target=4,sub_target=9,learning_rate=4e-3,batch_size=16,epochs
 
     # Load the model
     model = CNN()
-    model.load_state_dict(torch.load("modelNo0.pth",map_location=torch.device(device)))
-    model=model.to(device)
 
+    #WARNING: IF YOU WANT TO TEST THE CODE, PLEASE LOAD THE MODEL WITH THE CORRECT NAME
+    model.load_state_dict(torch.load("modelNo9.pth",map_location=torch.device(device)))
+
+    model=model.to(device)
     loss_fn = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.1)
@@ -137,8 +142,6 @@ def unlearn(forget_target=4,sub_target=9,learning_rate=4e-3,batch_size=16,epochs
 
     # Load and preprocess the datasets.
 
-
-
     #this will contain only the train data about the forgotten class
     train_only_forgotten_data = datasets.MNIST(
         root="data",
@@ -164,20 +167,6 @@ def unlearn(forget_target=4,sub_target=9,learning_rate=4e-3,batch_size=16,epochs
     train_only_to_learn.data = train_only_to_learn.data[train_mask]
     train_only_to_learn.targets = train_only_to_learn.targets[train_mask]
     train_only_to_learn_dataloader = DataLoader(train_only_to_learn, batch_size=batch_size)
-
-
-    #this will contain the training data where the forgotten class is removed
-    #training_to_learn = datasets.MNIST(
-    #    root="data",
-    #    train=True,
-    #    download=True,
-    #    transform=ToTensor()
-    #)
-    #train_mask = training_to_learn.targets != forget_target
-    #training_to_learn.data = training_to_learn.data[train_mask]
-    #training_to_learn.targets = training_to_learn.targets[train_mask]
-    #training_to_learn_dataloader = DataLoader(training_to_learn, batch_size=batch_size)
-
 
     #this will contain only the test data about the new class
     test_only_to_learn = datasets.MNIST(
@@ -220,7 +209,7 @@ def unlearn(forget_target=4,sub_target=9,learning_rate=4e-3,batch_size=16,epochs
     test_to_learn.targets = test_to_learn.targets[test_mask]
     test_to_learn_dataloader = DataLoader(test_to_learn, batch_size=batch_size)
 
-    #thid will contain the test data where the new class and the forgotten class are removed.
+    #this will contain the test data where the new class and the forgotten class are removed.
     test_static = datasets.MNIST(
         root="data",
         train=False,
@@ -315,15 +304,10 @@ def unlearn(forget_target=4,sub_target=9,learning_rate=4e-3,batch_size=16,epochs
         print("Accuracy on the new data:")
         test(test_only_to_learn_dataloader, model)
 
-
-
     hook1.remove()
     #hook2.remove()
     hook3.remove()
     hook4.remove()
-
-
-
 
     ################################# Relearn Gradient computation part #################################
 
@@ -333,7 +317,6 @@ def unlearn(forget_target=4,sub_target=9,learning_rate=4e-3,batch_size=16,epochs
     grads_fc1 = torch.zeros(model.fc1.weight.shape).squeeze().to(device)
     #grads_fc2 = torch.zeros(model.fc2.weight.shape).squeeze().to(device)
 
-    
     # Compute the gradients of the weights of all layers for the target class
     for img,_ in train_only_to_learn_dataloader:
         #img = img.unsqueeze(0)
@@ -342,15 +325,12 @@ def unlearn(forget_target=4,sub_target=9,learning_rate=4e-3,batch_size=16,epochs
         grads_fc1 += compute_gradients(model, model.fc1, img, sub_target).abs()
         #grads_fc2 += compute_gradients(model, model.fc2, img, sub_target).abs()
 
-
-    #print(grad_map2)
     #takes about 10% of the highest gradients
     conv1_map,_=calculate_map_and_treshold(grads_conv1,grad_map2[0]) #4
     conv1_map=conv1_map.unsqueeze(1)
     conv2_map,_=calculate_map_and_treshold(grads_conv2,grad_map2[1]) #16
     fc1_map,_=calculate_map_and_treshold(grads_fc1,grad_map2[2 ]) #1000
     #fc2_map,_=calculate_map_and_treshold(grads_fc2,80)
-
 
     ################################# Relearning part #################################
 
@@ -361,8 +341,7 @@ def unlearn(forget_target=4,sub_target=9,learning_rate=4e-3,batch_size=16,epochs
         return grad_clone
 
     #def fc2_hook(grad):
-    #    grad_clone = grad.clone()
-    #    
+    #    grad_clone = grad.clone()  
     #    grad_clone[fc2_map == 0] = 0
     #    return grad_clone
 
@@ -376,14 +355,11 @@ def unlearn(forget_target=4,sub_target=9,learning_rate=4e-3,batch_size=16,epochs
         grad_clone[conv2_map == 0] = 0
         return grad_clone
 
-
     # Register the hook for the specific parameter
     hook1 = model.fc1.weight.register_hook(fc1_hook)
     #hook2 = model.fc2.weight.register_hook(fc2_hook)
     hook3 = model.conv1.weight.register_hook(conv1_hook)
     hook4 = model.conv2.weight.register_hook(conv2_hook)
-
-
 
     print("\n\n")
     for t in range(5):
@@ -399,21 +375,6 @@ def unlearn(forget_target=4,sub_target=9,learning_rate=4e-3,batch_size=16,epochs
         print("Accuracy on static data:")
         test(test_static_dataloader,model)
         print("\n")
-
-    #print("Relearning....")
-    #train and test
-    #for t in range(epochs_relearn):
-    #    print(f"Epoch {t+1}\n-------------------------------")
-    #    loss_fn = nn.CrossEntropyLoss()
-    #    train(training_to_learn_dataloader, model, loss_fn, optimizer,scheduler)
-    #    print("Accuracy on dataset:")
-    #    test(test_to_learn_dataloader, model)
-    #    print("Accuracy on forgotten data:")
-    #    test(test_only_forgotten_dataloader, model)
-    #    print("Accuracy on the new data:")
-    #    test(test_only_to_learn_dataloader, model)
-    #    print("Accuracy on static data:")
-    #    test(test_static_dataloader,model)
 
     hook1.remove()
     #hook2.remove()
@@ -437,7 +398,3 @@ def unlearn(forget_target=4,sub_target=9,learning_rate=4e-3,batch_size=16,epochs
 
     #save the model
     #torch.save(model.state_dict(), "modelRetr.pth")
-
-
-
-    #print(test_data[0].shape)
