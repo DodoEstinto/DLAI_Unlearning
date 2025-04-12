@@ -77,7 +77,7 @@ def unlearn(forget_target=4,sub_target=9,learning_rate=4e-3,batch_size=16,epochs
     model = CNN()
 
     #WARNING: IF YOU WANT TO TEST THE CODE, PLEASE LOAD THE MODEL WITH THE CORRECT NAME
-    model.load_state_dict(torch.load("modelNo9.pth",map_location=torch.device(device)))
+    model.load_state_dict(torch.load("models/modelNo9.pth",map_location=torch.device(device)))
 
     model=model.to(device)
     loss_fn = nn.CrossEntropyLoss()
@@ -140,7 +140,7 @@ def unlearn(forget_target=4,sub_target=9,learning_rate=4e-3,batch_size=16,epochs
 
     ################################# Dataset preprocessing part #################################
 
-    # Load and preprocess the datasets.
+    # Load and preprocess the dataset.
 
     #this will contain only the train data about the forgotten class
     train_only_forgotten_data = datasets.MNIST(
@@ -394,7 +394,7 @@ def unlearn(forget_target=4,sub_target=9,learning_rate=4e-3,batch_size=16,epochs
     print("Starting accuracy on forgotten data:\n",starting_accuracy_forgotten)
     print("Starting accuracy on the new data:\n",starting_accuracy_new)
 
-    return dataset_score,forgotten_score,new_data_score,static_score,starting_accuracy_forgotten
+    return model,dataset_score,forgotten_score,new_data_score,static_score,starting_accuracy_forgotten
 
     #save the model
-    #torch.save(model.state_dict(), "modelRetr.pth")
+    #torch.save(model.state_dict(), "models/modelRetr.pth")

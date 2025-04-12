@@ -118,6 +118,6 @@ for t in range(epochs):
     test(test_dataloader, model)
 print("Done!")
 
-torch.save(model.state_dict(), "modelNo"+str(target)+".pth")
+torch.save(model.state_dict(), "models/modelNo"+str(target)+".pth")
 
 
