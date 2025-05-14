@@ -22,7 +22,7 @@ If you want to try to replicate the results and use the unlearn method, it's ess
 To do this change, at line 80, "modelNo9.pth" with the right one.
 ```
 #WARNING: IF YOU WANT TO TEST THE CODE, PLEASE LOAD THE MODEL WITH THE CORRECT NAME
-model.load_state_dict(torch.load("modelNo9.pth",map_location=torch.device(device)))
+model.load_state_dict(torch.load("models/modelNo0.pth",map_location=torch.device(device)))
 ```
 
 Then, call 
