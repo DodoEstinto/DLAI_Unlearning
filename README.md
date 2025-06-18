@@ -1,4 +1,5 @@
 # Machine unlearning
+Rated 28/30
 ## About the project
 This is a project for the Deep Learning and Artificial Intelligence course at Sapienza University based on the topic 1 of the [project list](https://raw.githubusercontent.com/erodola/DLAI-s2-2024/main/project_list.pdf).
 
